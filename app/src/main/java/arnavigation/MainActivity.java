@@ -1,14 +1,19 @@
 package arnavigation;
 
+
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.GestureDetector;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.Button;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.ar.core.Anchor;
@@ -20,12 +25,25 @@ import com.google.ar.sceneform.ux.TransformableNode;
 import com.ustglobal.arcloudanchors.R;
 
 import java.util.ArrayList;
+import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends AppCompatActivity implements AdapterView.OnItemSelectedListener {
 
     private CloudAnchorFragment arFragment;
     private ArrayList anchorList;
     private String FROM, MODE;
+    protected static final String HOSTED_ANCHOR_IDS = "anchor_ids";
+    protected static final String HOSTED_ANCHOR_NAMES = "anchor_names";
+    protected static final String HOSTED_ANCHOR_MINUTES = "anchor_minutes";
+    private String cloudAnchorId;
+    private TextView debugText;
+    private TextView userMessageText;
+    private SharedPreferences sharedPreferences;
+    // Tap handling and UI.
+    private GestureDetector gestureDetector;
+
+
+
 
     private enum AppAnchorState {
         NONE,
@@ -43,6 +61,12 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
+        // Initialize UI components.
+//        debugText = findViewById(R.id.debug_message);
+//        userMessageText = findViewById(R.id.user_message);
+
+
         super.onCreate(savedInstanceState);
         if (savedInstanceState == null) {
             Bundle extras = getIntent().getExtras();
@@ -172,6 +196,47 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         //adding this to the scene
         arFragment.getArSceneView().getScene().addChild(anchorNode);
     }
+
+
+    private static void saveAnchorToStorage(
+            String anchorId, String anchorNickname, SharedPreferences anchorPreferences) {
+        String hostedAnchorIds = anchorPreferences.getString(HOSTED_ANCHOR_IDS, "");
+        String hostedAnchorNames = anchorPreferences.getString(HOSTED_ANCHOR_NAMES, "");
+        String hostedAnchorMinutes = anchorPreferences.getString(HOSTED_ANCHOR_MINUTES, "");
+        hostedAnchorIds += anchorId + ";";
+        hostedAnchorNames += anchorNickname + ";";
+        hostedAnchorMinutes += TimeUnit.MILLISECONDS.toMinutes(System.currentTimeMillis()) + ";";
+        anchorPreferences.edit().putString(HOSTED_ANCHOR_IDS, hostedAnchorIds).apply();
+        anchorPreferences.edit().putString(HOSTED_ANCHOR_NAMES, hostedAnchorNames).apply();
+        anchorPreferences.edit().putString(HOSTED_ANCHOR_MINUTES, hostedAnchorMinutes).apply();
+    }
+    private void onAnchorNameEntered(String anchorNickname) {
+        saveAnchorToStorage(cloudAnchorId, anchorNickname, sharedPreferences);
+        userMessageText.setVisibility(View.GONE);
+  //      debugText.setText(getString(R.string.debug_hosting_success, cloudAnchorId));
+        debugText.setText(cloudAnchorId);
+        Intent sendIntent = new Intent();
+        sendIntent.setAction(Intent.ACTION_SEND);
+        sendIntent.putExtra(Intent.EXTRA_TEXT, cloudAnchorId);
+        sendIntent.setType("text/plain");
+        Intent shareIntent = Intent.createChooser(sendIntent, null);
+        startActivity(shareIntent);
+    }
+
+//    private void saveAnchorWithNickname() {
+//        if (cloudAnchorId == null) {
+//            return;
+//        }
+//        HostDialogFragment hostDialogFragment = new HostDialogFragment();
+//        // Supply num input as an argument.
+//        Bundle args = new Bundle();
+//        args.putString(
+//                "nickname", getString(R.string.nickname_default, getNumStoredAnchors(sharedPreferences)));
+//        hostDialogFragment.setOkListener(this::onAnchorNameEntered);
+//        hostDialogFragment.setArguments(args);
+//        hostDialogFragment.show(getSupportFragmentManager(), "HostDialog");
+//    }
+
     @Override
     public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
 
